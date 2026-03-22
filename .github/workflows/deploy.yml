@@ -16,12 +16,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: "pnpm" }
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run Unit Tests
         run: pnpm run test
 
-      - name: Install & Build
+      - name: Build
         run: |
-          pnpm install --frozen-lockfile
           npx tsc --noEmit
           pnpm run build
 
@@ -51,7 +53,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { name: dist-folder, path: ./dist }
-      - name:Simulate STAGING Deploy
+      - name: Simulate STAGING Deploy
+        run: echo "Simulating STAGING Deploy"
 
   deploy-prod:
     needs: build
@@ -59,15 +62,27 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
+      contents: read
       pages: write
       id-token: write
 
-      environment:
+    environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v4
         with: { name: dist-folder, path: ./dist }
-      - name: Deploy to PRODUCTION Environment
-        run: echo "Тут команда aws s3 sync ./dist s3://my-app-prod-bucket"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
