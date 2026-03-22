@@ -1,8 +1,10 @@
-FROM node:21-alpine as build-stage
+FROM node:21-alpine AS build-stage
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN npx tsc --noEmit && npm run build
