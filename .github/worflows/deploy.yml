@@ -1,0 +1,73 @@
+name: Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main", "stage", "dev"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: "pnpm" }
+
+      - name: Run Unit Tests
+        run: pnpm run test
+
+      - name: Install & Build
+        run: |
+          pnpm install --frozen-lockfile
+          npx tsc --noEmit
+          pnpm run build
+
+      - name: Save build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-folder
+          path: ./dist
+
+  # CD
+  deploy-dev:
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist-folder, path: ./dist }
+      - name: Simulate DEV Deploy
+        run: |
+          echo " send  AWS S3:"
+          ls -la ./dist
+
+  deploy-stage:
+    needs: build
+    if: github.ref == 'refs/heads/stage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist-folder, path: ./dist }
+      - name:Simulate STAGING Deploy
+
+  deploy-prod:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+      environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist-folder, path: ./dist }
+      - name: Deploy to PRODUCTION Environment
+        run: echo "Тут команда aws s3 sync ./dist s3://my-app-prod-bucket"
